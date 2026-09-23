@@ -1,0 +1,243 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Deriv Matches Analyzer</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f2f4f7;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 40px auto;
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.10);
+        }
+
+        h1 {
+            text-align: center;
+            color: #111827;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 25px;
+        }
+
+        label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 160px;
+            padding: 12px;
+            font-size: 17px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            resize: vertical;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            margin-top: 15px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 17px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        .card {
+            background: #f8fafc;
+            padding: 18px;
+            margin-top: 12px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .value {
+            font-size: 28px;
+            font-weight: bold;
+            margin-top: 5px;
+            color: #111827;
+        }
+
+        .error {
+            color: red;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+
+        .note {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff7ed;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #7c2d12;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>Deriv Matches Analyzer</h1>
+
+    <p class="subtitle">
+        Matches-only statistical analysis tool
+    </p>
+
+    <label for="digits">
+        Enter recent digits
+    </label>
+
+    <textarea id="digits"
+        placeholder="Example: 12345567890112234567"></textarea>
+
+    <button onclick="analyzeMatches()">
+        ANALYZE MATCHES
+    </button>
+
+    <div id="error" class="error"></div>
+
+    <div id="results"></div>
+
+    <div class="note">
+        This tool analyzes historical digits for statistical patterns.
+        It does not guarantee the outcome of future Deriv contracts.
+    </div>
+
+</div>
+
+<script>
+
+function analyzeMatches() {
+
+    const input = document.getElementById("digits").value;
+
+    const digits = input.replace(/[^0-9]/g, "");
+
+    const error = document.getElementById("error");
+
+    const results = document.getElementById("results");
+
+    if (digits.length < 2) {
+
+        error.innerHTML =
+            "Please enter at least 2 digits.";
+
+        results.innerHTML = "";
+
+        return;
+    }
+
+    error.innerHTML = "";
+
+    let matches = 0;
+    let maximumGap = 0;
+    let currentGap = 0;
+
+    for (let i = 1; i < digits.length; i++) {
+
+        if (digits[i] === digits[i - 1]) {
+
+            matches++;
+
+            currentGap = 0;
+
+        } else {
+
+            currentGap++;
+
+            if (currentGap > maximumGap) {
+                maximumGap = currentGap;
+            }
+        }
+    }
+
+    const comparisons = digits.length - 1;
+
+    const matchPercentage =
+        (matches / comparisons) * 100;
+
+    let gapSinceLastMatch = 0;
+
+    for (let i = digits.length - 1; i > 0; i--) {
+
+        if (digits[i] === digits[i - 1]) {
+            break;
+        }
+
+        gapSinceLastMatch++;
+    }
+
+    results.innerHTML = `
+
+        <div class="card">
+            <strong>Total Digits</strong>
+            <div class="value">${digits.length}</div>
+        </div>
+
+        <div class="card">
+            <strong>Total Comparisons</strong>
+            <div class="value">${comparisons}</div>
+        </div>
+
+        <div class="card">
+            <strong>Matches Found</strong>
+            <div class="value">${matches}</div>
+        </div>
+
+        <div class="card">
+            <strong>Match Percentage</strong>
+            <div class="value">
+                ${matchPercentage.toFixed(2)}%
+            </div>
+        </div>
+
+        <div class="card">
+            <strong>Current Gap Since Last Match</strong>
+            <div class="value">
+                ${gapSinceLastMatch}
+            </div>
+        </div>
+
+        <div class="card">
+            <strong>Maximum Historical Gap</strong>
+            <div class="value">
+                ${maximumGap}
+            </div>
+        </div>
+
+    `;
+}
+
+</script>
+
+</body>
+</html>
+```
