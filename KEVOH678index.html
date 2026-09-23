@@ -1,0 +1,381 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deriv Volatility Matches Analyzer</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f2f4f7;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 30px auto;
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.10);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 25px;
+        }
+
+        select, button {
+            width: 100%;
+            padding: 14px;
+            margin-top: 10px;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        select {
+            border: 1px solid #ccc;
+            background: white;
+        }
+
+        button {
+            border: none;
+            background: #2563eb;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        .status {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            background: #f1f5f9;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .card {
+            background: #f8fafc;
+            padding: 18px;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .label {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .value {
+            font-size: 26px;
+            font-weight: bold;
+            margin-top: 6px;
+        }
+
+        .ticks {
+            margin-top: 20px;
+            padding: 15px;
+            background: #111827;
+            color: white;
+            border-radius: 10px;
+            word-break: break-all;
+            line-height: 1.8;
+        }
+
+        .note {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff7ed;
+            color: #7c2d12;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>Deriv Volatility Matches Analyzer</h1>
+
+    <p class="subtitle">
+        Matches-only live market analysis
+    </p>
+
+    <label for="market">
+        Select Volatility Market
+    </label>
+
+    <select id="market">
+        <option value="1HZ10V">Volatility 10 (1s)</option>
+        <option value="1HZ25V">Volatility 25 (1s)</option>
+        <option value="1HZ30V">Volatility 30 (1s)</option>
+        <option value="1HZ50V">Volatility 50 (1s)</option>
+        <option value="1HZ75V">Volatility 75 (1s)</option>
+        <option value="1HZ90V">Volatility 90 (1s)</option>
+        <option value="1HZ100V">Volatility 100 (1s)</option>
+    </select>
+
+    <button onclick="startAnalysis()">
+        START LIVE ANALYSIS
+    </button>
+
+    <div id="status" class="status">
+        Waiting to connect...
+    </div>
+
+    <div class="grid">
+
+        <div class="card">
+            <div class="label">Selected Market</div>
+            <div id="selectedMarket" class="value">-</div>
+        </div>
+
+        <div class="card">
+            <div class="label">Current Price</div>
+            <div id="price" class="value">-</div>
+        </div>
+
+        <div class="card">
+            <div class="label">Last Digit</div>
+            <div id="lastDigit" class="value">-</div>
+        </div>
+
+        <div class="card">
+            <div class="label">Ticks Received</div>
+            <div id="tickCount" class="value">0</div>
+        </div>
+
+        <div class="card">
+            <div class="label">Matches Found</div>
+            <div id="matches" class="value">0</div>
+        </div>
+
+        <div class="card">
+            <div class="label">Match Percentage</div>
+            <div id="matchPercentage" class="value">0%</div>
+        </div>
+
+        <div class="card">
+            <div class="label">Current Gap</div>
+            <div id="currentGap" class="value">0</div>
+        </div>
+
+        <div class="card">
+            <div class="label">Maximum Gap</div>
+            <div id="maximumGap" class="value">0</div>
+        </div>
+
+    </div>
+
+    <div class="ticks">
+        <strong>Recent Digits:</strong>
+        <div id="digits">Waiting for ticks...</div>
+    </div>
+
+    <div class="note">
+        This is a statistical analysis tool. It does not guarantee
+        future outcomes and does not place trades.
+    </div>
+
+</div>
+
+<script>
+
+let socket = null;
+
+let digits = [];
+
+let matches = 0;
+
+let currentGap = 0;
+
+let maximumGap = 0;
+
+function getLastDigit(price) {
+
+    const text = String(price);
+
+    const clean = text.replace(".", "");
+
+    return Number(clean.slice(-1));
+}
+
+function startAnalysis() {
+
+    const market =
+        document.getElementById("market").value;
+
+    const marketName =
+        document.getElementById("market")
+        .options[
+            document.getElementById("market").selectedIndex
+        ].text;
+
+    if (socket) {
+        socket.close();
+    }
+
+    digits = [];
+    matches = 0;
+    currentGap = 0;
+    maximumGap = 0;
+
+    document.getElementById("selectedMarket")
+        .textContent = marketName;
+
+    document.getElementById("price")
+        .textContent = "-";
+
+    document.getElementById("lastDigit")
+        .textContent = "-";
+
+    document.getElementById("tickCount")
+        .textContent = "0";
+
+    document.getElementById("matches")
+        .textContent = "0";
+
+    document.getElementById("matchPercentage")
+        .textContent = "0%";
+
+    document.getElementById("currentGap")
+        .textContent = "0";
+
+    document.getElementById("maximumGap")
+        .textContent = "0";
+
+    document.getElementById("digits")
+        .textContent = "Connecting...";
+
+    document.getElementById("status")
+        .textContent = "Connecting to Deriv...";
+
+    socket = new WebSocket(
+        "wss://ws.binaryws.com/websockets/v3"
+    );
+
+    socket.onopen = function() {
+
+        document.getElementById("status")
+            .textContent = "Connected — receiving live ticks...";
+
+        socket.send(JSON.stringify({
+            ticks: market,
+            subscribe: 1
+        }));
+    };
+
+    socket.onmessage = function(event) {
+
+        const data = JSON.parse(event.data);
+
+        if (data.msg_type === "tick") {
+
+            const price = data.tick.quote;
+
+            const digit = getLastDigit(price);
+
+            document.getElementById("price")
+                .textContent = price;
+
+            document.getElementById("lastDigit")
+                .textContent = digit;
+
+            if (digits.length > 0) {
+
+                const previousDigit =
+                    digits[digits.length - 1];
+
+                if (digit === previousDigit) {
+
+                    matches++;
+
+                    currentGap = 0;
+
+                } else {
+
+                    currentGap++;
+
+                    if (currentGap > maximumGap) {
+                        maximumGap = currentGap;
+                    }
+                }
+            }
+
+            digits.push(digit);
+
+            if (digits.length > 100) {
+                digits.shift();
+            }
+
+            const comparisons =
+                Math.max(digits.length - 1, 1);
+
+            const percentage =
+                (matches / comparisons) * 100;
+
+            document.getElementById("tickCount")
+                .textContent = digits.length;
+
+            document.getElementById("matches")
+                .textContent = matches;
+
+            document.getElementById("matchPercentage")
+                .textContent =
+                percentage.toFixed(2) + "%";
+
+            document.getElementById("currentGap")
+                .textContent = currentGap;
+
+            document.getElementById("maximumGap")
+                .textContent = maximumGap;
+
+            document.getElementById("digits")
+                .textContent = digits.join(" ");
+        }
+    };
+
+    socket.onerror = function() {
+
+        document.getElementById("status")
+            .textContent =
+            "Connection error. Please try again.";
+    };
+
+    socket.onclose = function() {
+
+        document.getElementById("status")
+            .textContent =
+            "Connection closed.";
+    };
+}
+
+</script>
+
+</body>
+</html>
+```
